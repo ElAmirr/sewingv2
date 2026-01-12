@@ -7,6 +7,7 @@ import en from "../locales/en.json";
 import fr from "../locales/fr.json";
 import ar from "../locales/ar.json";
 
+
 function getCurrentCycleInfo(now = new Date()) {
   const hour = now.getHours();
   const cycleHour = hour - (hour % 2);

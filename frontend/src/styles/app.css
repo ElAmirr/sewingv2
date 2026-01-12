@@ -206,7 +206,7 @@
     flex-direction:column;
     gap:6px;
   }
-  .big-time { font-size: 3.5rem; font-weight:700; }
+  .big-time { font-size: 55px; font-weight:700; }
   
   /* modal */
   .modal-backdrop{
