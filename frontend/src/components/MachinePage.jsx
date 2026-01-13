@@ -8,6 +8,8 @@ import fr from "../locales/fr.json";
 import ar from "../locales/ar.json";
 
 
+import alertSound from "../assets/beep.mp3";
+
 function getCurrentCycleInfo(now = new Date()) {
   const hour = now.getHours();
   const cycleHour = hour - (hour % 2);
@@ -28,6 +30,46 @@ function getCurrentCycleInfo(now = new Date()) {
 }
 
 export default function MachinePage({ operator, machine, onLogout }) {
+  /* ===================== AUDIO ===================== */
+  const [alertAudio, setAlertAudio] = useState(null);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const lastPlayedCycleRef = React.useRef(null);
+
+
+  // ✅ CREATE AUDIO ONCE
+  useEffect(() => {
+    const audio = new Audio(alertSound);
+    audio.loop = true;
+    setAlertAudio(audio);
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+
+  // ✅ UNLOCK AUDIO ON FIRST USER CLICK
+  useEffect(() => {
+    if (!alertAudio || audioUnlocked) return;
+  
+    const unlock = () => {
+      alertAudio.muted = true;
+  
+      alertAudio.play()
+        .then(() => {
+          alertAudio.pause();
+          alertAudio.currentTime = 0;
+          alertAudio.muted = false;
+          setAudioUnlocked(true);
+        })
+        .catch(() => {});
+    };
+  
+    window.addEventListener("click", unlock, { once: true });
+  
+    return () => window.removeEventListener("click", unlock);
+  }, [alertAudio, audioUnlocked]);
+  
   // Logs state
   const [logsRefreshing, setLogsRefreshing] = useState(false);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
@@ -60,11 +102,22 @@ export default function MachinePage({ operator, machine, onLogout }) {
   // 🔥 stable value
   const cycleId = cycleStart.getTime(); // number (milliseconds)
   useEffect(() => {
-    // New 2h cycle → reset buttons
+    // reset UI on new cycle
     setOperatorPressed(false);
     setSupervisorPressed(false);
     setPendingLogId(null);
-  }, [cycleId]);
+  
+    // 🔒 only play if cycle really changed
+    if (
+      alertAudio &&
+      audioUnlocked &&
+      lastPlayedCycleRef.current !== cycleId
+    ) {
+      lastPlayedCycleRef.current = cycleId;
+      alertAudio.currentTime = 0;
+      alertAudio.play().catch(() => {});
+    }
+  }, [cycleId, alertAudio, audioUnlocked]);
   
 
 
@@ -74,6 +127,12 @@ export default function MachinePage({ operator, machine, onLogout }) {
 
   const handleOperatorPress = async () => {
     try {
+      // ⛔ STOP AUDIO (ONLY HERE)
+      if (alertAudio) {
+        alertAudio.pause();
+        alertAudio.currentTime = 0;
+      }
+
       const now = new Date();
       const status = getStatusForPress(now, cycleStart);
       const payload = {
@@ -85,7 +144,6 @@ export default function MachinePage({ operator, machine, onLogout }) {
         cycle_start_time: cycleStart,
         cycle_end_time: cycleEnd,
       };
-
       const res = await api.post("/logs", payload);
 
       setOperatorPressed(true);
