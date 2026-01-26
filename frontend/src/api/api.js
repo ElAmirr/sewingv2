@@ -1,8 +1,9 @@
 import axios from "axios";
 
-const BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-export const api = axios.create({
-  baseURL: BASE,
+const api = axios.create({
+  baseURL: typeof window !== "undefined" ? window.location.origin : "",
   timeout: 10000,
+  headers: { "Content-Type": "application/json" },
 });
+
+export { api };
